@@ -8,6 +8,8 @@ on:
       - "apktool-project/**"
       - "tools/build.sh"
       - "tools/sign.sh"
+      - "signing/**"
+      - ".github/workflows/build-apk.yml"
 
 permissions:
   contents: read
