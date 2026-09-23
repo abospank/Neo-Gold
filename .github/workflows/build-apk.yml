@@ -1,0 +1,50 @@
+name: Build Neo-Gold APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "apktool-project/**"
+      - "tools/build.sh"
+      - "tools/sign.sh"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Make scripts executable
+        run: chmod +x tools/*.sh
+
+      - name: Rebuild APK
+        run: ./tools/build.sh
+
+      - name: Align and sign APK
+        run: ./tools/sign.sh build/Neo-Gold-unsigned.apk build/Neo-Gold.apk
+
+      - name: APK checksum
+        run: sha256sum build/Neo-Gold.apk | tee build/Neo-Gold.apk.sha256
+
+      - name: Upload signed APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Neo-Gold-apk
+          path: |
+            build/Neo-Gold.apk
+            build/Neo-Gold.apk.sha256
+          if-no-files-found: error
+          retention-days: 30
