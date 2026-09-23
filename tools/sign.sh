@@ -4,7 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 IN_APK="${1:-$ROOT/build/Neo-Gold-unsigned.apk}"
 OUT_APK="${2:-$ROOT/build/Neo-Gold.apk}"
-KEYSTORE="$ROOT/build/neo-gold-debug.keystore"
+STABLE_KEYSTORE="$ROOT/signing/neo-gold-debug.keystore"
+LOCAL_KEYSTORE="$ROOT/build/neo-gold-debug.keystore"
 
 if [[ ! -f "$IN_APK" ]]; then
   echo "Input APK not found: $IN_APK" >&2
@@ -13,8 +14,14 @@ fi
 
 mkdir -p "$ROOT/build"
 
-if [[ ! -f "$KEYSTORE" ]]; then
-  keytool -genkeypair     -keystore "$KEYSTORE"     -storepass android     -keypass android     -alias neo-gold     -keyalg RSA     -keysize 2048     -validity 10000     -dname "CN=Neo Gold Debug,O=Neo Gold,C=DZ"     -noprompt
+if [[ -f "$STABLE_KEYSTORE" ]]; then
+  KEYSTORE="$STABLE_KEYSTORE"
+else
+  KEYSTORE="$LOCAL_KEYSTORE"
+  if [[ ! -f "$KEYSTORE" ]]; then
+    echo "Stable repository test key not found; generating a local debug key."
+    keytool -genkeypair       -keystore "$KEYSTORE"       -storepass android       -keypass android       -alias neo-gold       -keyalg RSA       -keysize 2048       -validity 10000       -dname "CN=Neo Gold Debug,O=Neo Gold,C=DZ"       -noprompt
+  fi
 fi
 
 SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
