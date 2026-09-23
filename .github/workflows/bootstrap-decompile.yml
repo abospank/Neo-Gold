@@ -1,0 +1,85 @@
+name: Bootstrap - Decompile Neo4KPro
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/bootstrap-decompile.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  decompile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      EXPECTED_SHA256: 7b6c7c571a7c26ab3c3aa858ae15d9ad7200626cd072deb6b50b010440ed892e
+      SOURCE_URL: https://cold-na-phx-10.gofile.io/download/direct/6f61dea0-6719-43e2-8255-f9bb0dd16b37/Neo4KPro.apk
+      AFTV_PAGE: https://aftv.news/1842729
+      APKTOOL_VERSION: 3.0.3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Download source APK and verify exact hash
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p input tools/bin
+
+          if ! curl -fL --retry 4 --retry-delay 3 "$SOURCE_URL" -o input/Neo4KPro.apk; then
+            echo "Direct mirror failed; resolving AFTV code page..."
+            PAGE="$(curl -fsSL "$AFTV_PAGE")"
+            RESOLVED="$(printf '%s' "$PAGE" | grep -Eo 'https://[^"<> ]+gofile\.io/download/direct/[^"<> ]+/Neo4KPro\.apk' | head -1 || true)"
+            test -n "$RESOLVED"
+            curl -fL --retry 4 --retry-delay 3 "$RESOLVED" -o input/Neo4KPro.apk
+          fi
+
+          ACTUAL="$(sha256sum input/Neo4KPro.apk | awk '{print $1}')"
+          echo "Expected: $EXPECTED_SHA256"
+          echo "Actual:   $ACTUAL"
+
+          if [[ "$ACTUAL" != "$EXPECTED_SHA256" ]]; then
+            echo "::error::Mirror hash differs from the supplied Neo4KPro APK. Nothing was decompiled."
+            exit 1
+          fi
+
+      - name: Download Apktool
+        run: |
+          curl -fL --retry 4 --retry-delay 2             "https://github.com/iBotPeaches/Apktool/releases/download/v$APKTOOL_VERSION/apktool_$APKTOOL_VERSION.jar"             -o tools/bin/apktool.jar
+
+      - name: Decode APK
+        run: |
+          rm -rf apktool-project
+          java -jar tools/bin/apktool.jar d -f input/Neo4KPro.apk -o apktool-project
+          test -f apktool-project/apktool.yml
+          test -f apktool-project/AndroidManifest.xml
+
+      - name: Record source fingerprint
+        run: sha256sum input/Neo4KPro.apk | sed 's#input/##' > SOURCE_APK.sha256
+
+      - name: Commit decoded project
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apktool-project SOURCE_APK.sha256
+
+          if git diff --cached --quiet; then
+            echo "Decoded project is already current."
+            exit 0
+          fi
+
+          git commit -m "Decompile Neo4KPro v3.8"
+          git push
