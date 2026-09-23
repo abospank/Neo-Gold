@@ -1,0 +1,21 @@
+name: Export signing key temp
+
+on:
+  push:
+    branches: [temp-export-signing-key]
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upload signing key
+        uses: actions/upload-artifact@v4
+        with:
+          name: neo-gold-signing-key
+          path: signing/neo-gold-debug.keystore
+          if-no-files-found: error
+          retention-days: 1
