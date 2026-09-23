@@ -35,11 +35,11 @@ Runs automatically when files inside `apktool-project/` change. It:
 
 1. Rebuilds with Apktool 3.0.3.
 2. Zipaligns the APK.
-3. Creates a debug signing key for that build.
+3. Uses the stable test keystore stored at `signing/neo-gold-debug.keystore`.
 4. Signs and verifies the APK.
 5. Uploads `Neo-Gold.apk` as a GitHub Actions artifact.
 
-Because the CI signing key is generated during the run, a new CI build may need the previous test build uninstalled before installation. For update-compatible production builds, configure your own persistent signing key.
+The repository test key is intentionally for development builds only. Successive Neo-Gold CI builds use the same test signature, so they can be installed as updates over earlier Neo-Gold test builds when the package name is unchanged. For production distribution, use your own private production keystore.
 
 ## Local commands
 
