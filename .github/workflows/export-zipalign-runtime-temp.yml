@@ -1,0 +1,28 @@
+name: Export zipalign runtime
+
+on:
+  push:
+    branches: [temp-export-android-tools-20260923]
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Export runtime
+        shell: bash
+        run: |
+          set -e
+          mkdir -p export
+          LIB="$(find "$ANDROID_HOME" -name 'libc++.so' -type f | head -1)"
+          echo "Using $LIB"
+          test -n "$LIB"
+          cp "$LIB" export/libc++.so
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zipalign-runtime
+          path: export/libc++.so
+          retention-days: 1
