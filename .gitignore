@@ -1,0 +1,9 @@
+build/
+tools/bin/
+input/
+*.apk
+*.apks
+*.aab
+.idea/
+.vscode/
+.DS_Store
