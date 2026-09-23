@@ -20,6 +20,35 @@ if [[ ! -f "$APKTOOL_JAR" ]]; then
   curl -fL --retry 4 --retry-delay 2 "$APKTOOL_URL" -o "$APKTOOL_JAR"
 fi
 
+python3 "$ROOT/tools/patch_iron_login.py"
+
 rm -f "$OUT_APK"
 java -jar "$APKTOOL_JAR" b "$PROJECT" -o "$OUT_APK"
+
+# Compile the self-contained IRON activation screen into classes4.dex.
+SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+if [[ -z "$SDK_ROOT" ]]; then
+  echo "ANDROID_SDK_ROOT or ANDROID_HOME must point to an Android SDK." >&2
+  exit 2
+fi
+ANDROID_JAR="$SDK_ROOT/platforms/android-33/android.jar"
+if [[ ! -f "$ANDROID_JAR" ]]; then
+  ANDROID_JAR="$(find "$SDK_ROOT/platforms" -name android.jar | sort -V | tail -1)"
+fi
+D8="$(find "$SDK_ROOT/build-tools" -type f -name d8 | sort -V | tail -1)"
+if [[ -z "$D8" || ! -x "$D8" ]]; then
+  echo "d8 not found in Android SDK." >&2
+  exit 2
+fi
+
+rm -rf /tmp/iron-classes /tmp/iron-dex /tmp/iron-classes.jar
+mkdir -p /tmp/iron-classes /tmp/iron-dex
+javac -source 8 -target 8 -cp "$ANDROID_JAR" -d /tmp/iron-classes   "$ROOT/inject-src/com/shadeed/ibopro/IronCodeActivity.java"
+jar cf /tmp/iron-classes.jar -C /tmp/iron-classes .
+"$D8" --min-api 21 --output /tmp/iron-dex /tmp/iron-classes.jar
+mv /tmp/iron-dex/classes.dex /tmp/iron-dex/classes4.dex
+zip -q -d "$OUT_APK" classes4.dex || true
+zip -q -j "$OUT_APK" /tmp/iron-dex/classes4.dex
+unzip -l "$OUT_APK" | grep -q 'classes4.dex'
+
 echo "Built: $OUT_APK"
