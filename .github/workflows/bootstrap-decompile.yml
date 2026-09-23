@@ -65,21 +65,30 @@ jobs:
           test -f apktool-project/apktool.yml
           test -f apktool-project/AndroidManifest.xml
 
+      - name: Ensure stable test signing key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p signing
+          if [[ ! -f signing/neo-gold-debug.keystore ]]; then
+            keytool -genkeypair               -keystore signing/neo-gold-debug.keystore               -storepass android               -keypass android               -alias neo-gold               -keyalg RSA               -keysize 2048               -validity 10000               -dname "CN=Neo Gold Debug,O=Neo Gold,C=DZ"               -noprompt
+          fi
+
       - name: Record source fingerprint
         run: sha256sum input/Neo4KPro.apk | sed 's#input/##' > SOURCE_APK.sha256
 
-      - name: Commit decoded project
+      - name: Commit decoded project and test key
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add apktool-project SOURCE_APK.sha256
+          git add apktool-project SOURCE_APK.sha256 signing/neo-gold-debug.keystore
 
           if git diff --cached --quiet; then
-            echo "Decoded project is already current."
+            echo "Decoded project and signing key are already current."
             exit 0
           fi
 
-          git commit -m "Decompile Neo4KPro v3.8"
+          git commit -m "Refresh decoded Neo4KPro project and stable test signing"
           git push
