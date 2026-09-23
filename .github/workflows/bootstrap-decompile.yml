@@ -91,4 +91,5 @@ jobs:
           fi
 
           git commit -m "Refresh decoded Neo4KPro project and stable test signing"
-          git push
+          git pull --rebase origin main
+          git push origin HEAD:main
