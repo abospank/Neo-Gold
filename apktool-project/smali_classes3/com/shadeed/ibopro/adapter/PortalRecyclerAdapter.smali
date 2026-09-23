@@ -325,7 +325,7 @@
 .end method
 
 .method public onBindViewHolder(Landroidx/recyclerview/widget/RecyclerView$ViewHolder;I)V
-    .locals 5
+    .locals 7
     .param p1    # Landroidx/recyclerview/widget/RecyclerView$ViewHolder;
         .annotation build Landroidx/annotation/NonNull;
         .end annotation
@@ -413,6 +413,20 @@
     check-cast v4, Lcom/shadeed/ibopro/models/AppInfoModel$UrlModel;
 
     invoke-virtual {v4}, Lcom/shadeed/ibopro/models/AppInfoModel$UrlModel;->getName()Ljava/lang/String;
+
+    move-result-object v4
+
+    const-string v5, "(?i)neo\\s*4k"
+
+    const-string v6, "AION TV GOLD"
+
+    invoke-virtual {v4, v5, v6}, Ljava/lang/String;->replaceAll(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v4
+
+    const-string v5, "(?i)neo"
+
+    invoke-virtual {v4, v5, v6}, Ljava/lang/String;->replaceAll(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
 
     move-result-object v4
 

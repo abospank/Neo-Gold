@@ -806,6 +806,20 @@
 
     move-result-object v1
 
+    const-string v2, "(?i)neo\\s*4k"
+
+    const-string v5, "AION TV GOLD"
+
+    invoke-virtual {v1, v2, v5}, Ljava/lang/String;->replaceAll(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v1
+
+    const-string v2, "(?i)neo"
+
+    invoke-virtual {v1, v2, v5}, Ljava/lang/String;->replaceAll(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v1
+
     invoke-virtual {v0, v1}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
 
     .line 34
@@ -814,6 +828,20 @@
     iget-object v1, p0, Lcom/shadeed/ibopro/activities/ChangePlaylistActivity;->appInfoModel:Lcom/shadeed/ibopro/models/AppInfoModel;
 
     invoke-virtual {v1}, Lcom/shadeed/ibopro/models/AppInfoModel;->getNoteContent()Ljava/lang/String;
+
+    move-result-object v1
+
+    const-string v2, "(?i)neo\\s*4k"
+
+    const-string v5, "AION TV GOLD"
+
+    invoke-virtual {v1, v2, v5}, Ljava/lang/String;->replaceAll(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v1
+
+    const-string v2, "(?i)neo"
+
+    invoke-virtual {v1, v2, v5}, Ljava/lang/String;->replaceAll(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
 
     move-result-object v1
 
