@@ -1,0 +1,21 @@
+version: 3.0.3
+apkFileName: Neo4KPro.apk
+usesFramework:
+  ids:
+  - 1
+sdkInfo:
+  minSdkVersion: 21
+  targetSdkVersion: 33
+versionInfo:
+  versionCode: 40
+  versionName: 3.8
+resourcesInfo:
+  packageId: 127
+doNotCompress:
+- arsc
+- gif
+- jpg
+- ogg
+- png
+- assets/dexopt/baseline.prof
+- assets/dexopt/baseline.profm
