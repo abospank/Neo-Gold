@@ -1,0 +1,121 @@
+name: Import AION baseline release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Published release tag holding the exact AION APK"
+        required: true
+        default: aion-baseline-20260927
+
+permissions:
+  contents: write
+
+concurrency:
+  group: import-aion-hotfix-auto-home
+  cancel-in-progress: false
+
+jobs:
+  import:
+    if: startsWith(github.event.release.tag_name || inputs.release_tag, 'aion-baseline-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+      EXPECTED_SHA256: a3e3b81ea0662af44c12669998fcbcacd4944dcec5ad116a5da2ff243d5f7329
+      BASELINE_BRANCH: aion-gold/hotfix-auto-home-baseline
+      APKTOOL_VERSION: 3.0.3
+
+    steps:
+      - name: Check out isolated AION baseline branch
+        uses: actions/checkout@v4
+        with:
+          ref: aion-gold/hotfix-auto-home-baseline
+          persist-credentials: true
+
+      - name: Download exactly one APK from the published release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p input
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'AION-TV-GOLD-HOTFIX-AUTO-HOME*.apk' --dir input
+          mapfile -d '' APKS < <(find input -maxdepth 1 -type f -name '*.apk' -print0)
+          if [[ "${#APKS[@]}" -ne 1 ]]; then
+            echo "::error::The release must have exactly one HOTFIX AUTO HOME APK."
+            exit 1
+          fi
+          printf '%s\n' "${APKS[0]}" > input/apk-path.txt
+
+      - name: Verify exact user-provided APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$(cat input/apk-path.txt)"
+          ACTUAL="$(sha256sum "$APK" | awk '{print $1}')"
+          BYTES="$(stat -c '%s' "$APK")"
+          echo "Actual checksum: $ACTUAL"
+          echo "Actual size: $BYTES"
+          [[ "$ACTUAL" == "$EXPECTED_SHA256" ]] || {
+            echo "::error::APK fingerprint does not match the user-supplied baseline."
+            exit 1
+          }
+          [[ "$BYTES" == "44911920" ]] || {
+            echo "::error::APK size differs from the user-supplied baseline."
+            exit 1
+          }
+          unzip -tq "$APK"
+
+      - name: Upload exact APK as a run artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AION-TV-GOLD-HOTFIX-AUTO-HOME-verified
+          path: input/*.apk
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Download Apktool
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tools/bin
+          curl -fLsS --retry 4 --retry-delay 2 \
+            "https://github.com/iBotPeaches/Apktool/releases/download/v${APKTOOL_VERSION}/apktool_${APKTOOL_VERSION}.jar" \
+            -o tools/bin/apktool.jar
+
+      - name: Import editable source from verified APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf apktool-project
+          java -jar tools/bin/apktool.jar d -f "$(cat input/apk-path.txt)" -o apktool-project
+          test -f apktool-project/AndroidManifest.xml
+          test -f apktool-project/apktool.yml
+          mkdir -p versions/AION-TV-GOLD-HOTFIX-AUTO-HOME-20260927
+          printf 'Imported exact APK from release %s\nSHA-256: %s\nRun: %s\n' \
+            "$RELEASE_TAG" "$EXPECTED_SHA256" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            > versions/AION-TV-GOLD-HOTFIX-AUTO-HOME-20260927/IMPORTED.txt
+
+      - name: Commit decoded project to isolated baseline branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A apktool-project versions/AION-TV-GOLD-HOTFIX-AUTO-HOME-20260927/IMPORTED.txt
+          if git diff --cached --quiet; then
+            echo "Decoded project already imported."
+            exit 0
+          fi
+          git commit -m "Import verified AION HOTFIX AUTO HOME APK as editable baseline"
+          git push origin "HEAD:refs/heads/$BASELINE_BRANCH"
