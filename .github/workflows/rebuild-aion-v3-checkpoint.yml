@@ -1,0 +1,32 @@
+name: Rebuild AION V3 checkpoint
+
+on:
+  push:
+    branches:
+      - "aion-gold/playlist-corrected-v3-record"
+    paths:
+      - "versions/AION-TV-GOLD-PLAYLIST-CORRECTED-v3/apk-chunks/**"
+      - "versions/AION-TV-GOLD-PLAYLIST-CORRECTED-v3/assemble-apk.sh"
+      - ".github/workflows/rebuild-aion-v3-checkpoint.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reassemble exact checkpoint
+        shell: bash
+        run: |
+          cd versions/AION-TV-GOLD-PLAYLIST-CORRECTED-v3
+          chmod +x assemble-apk.sh
+          ./assemble-apk.sh
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AION-TV-GOLD-V3-checkpoint
+          path: versions/AION-TV-GOLD-PLAYLIST-CORRECTED-v3/AION-TV-GOLD-V3.apk
+          if-no-files-found: error
