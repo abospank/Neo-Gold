@@ -1,0 +1,30 @@
+name: Temporary APK inspection toolkit
+on:
+  push:
+    branches:
+      - wip/aion-login-toolchain-20260927
+    paths:
+      - .github/workflows/aion-apk-toolkit.yml
+permissions:
+  contents: read
+jobs:
+  toolkit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Collect offline APK tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          BT="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          mkdir -p toolkit/lib toolkit/lib64
+          cp "$BT/zipalign" "$BT/aapt2" toolkit/
+          cp "$BT/lib/apksigner.jar" toolkit/lib/
+          [ ! -e "$BT/lib64/libc++.so" ] || cp "$BT/lib64/libc++.so" toolkit/lib64/
+          cp signing/neo-gold-debug.keystore toolkit/
+          curl -fL --retry 3 -o toolkit/apktool.jar https://github.com/iBotPeaches/Apktool/releases/download/v2.11.1/apktool_2.11.1.jar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aion-local-apk-tools
+          path: toolkit
+          retention-days: 1
+          compression-level: 0
