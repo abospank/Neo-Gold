@@ -1,0 +1,34 @@
+name: Publish AION Android v74
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-aion-android-v74.yml']
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download and verify exact APK
+        env:
+          SIGNED_URL_B64: aHR0cHM6Ly9yZWxlYXNlLWFzc2V0cy5naXRodWJ1c2VyY29udGVudC5jb20vZ2l0aHViLXByb2R1Y3Rpb24tcmVsZWFzZS1hc3NldC8xMzU2Njc1MzQzLzliYjlmOWI4LTNjZmYtNDkxOC1hNzU3LWNiNWIzZjhhMTQ4ZD9zcD1yJnN2PTIwMTgtMTEtMDkmc3I9YiZzcHI9aHR0cHMmc2U9MjAyNi0xMS0wMVQwNCUzQTU5JTNBMTlaJnJzY2Q9YXR0YWNobWVudCUzQitmaWxlbmFtZSUzREFJT04tVFYtR09MRC12MS4wLUxPR0lOLVJFRkVSRU5DRS12NzQuYXBrJnJzY3Q9YXBwbGljYXRpb24lMkZ2bmQuYW5kcm9pZC5wYWNrYWdlLWFyY2hpdmUmc2tvaWQ9OTZjMmQ0MTAtNTcxMS00M2ExLWFlZGQtYWIxOTQ3YWE3YWIwJnNrdGlkPTM5OGE2NjU0LTk5N2ItNDdlOS1iMTJiLTk1MTViODk2YjRkZSZza3Q9MjAyNi0xMS0wMVQwMyUzQTU4JTNBNDJaJnNrZT0yMDI2LTExLTAxVDA0JTNBNTklM0ExOVomc2tzPWImc2t2PTIwMTgtMTEtMDkmc2lnPThHSk9MNmJEUXZXTW8ycGJjZzA4WWxaSFkzYk1jMlBsJTJCc2ZCNThmdlZYbyUzRCZqd3Q9ZXlKMGVYQWlPaUpLVjFRaUxDSmhiR2NpT2lKSVV6STFOaUo5LmV5SnBjM01pT2lKbmFYUm9kV0l1WTI5dElpd2lZWFZrSWpvaWNtVnNaV0Z6WlMxaGMzTmxkSE11WjJsMGFIVmlkWE5sY21OdmJuUmxiblF1WTI5dElpd2lhMlY1SWpvaWEyVjVNU0lzSW1WNGNDSTZNVGM1TXpVd056WXpOaXdpYm1KbUlqb3hOemt6TlRBMU9ETTJMQ0p3WVhSb0lqb2ljbVZzWldGelpXRnpjMlYwY0hKdlpIVmpkR2x2Ymk1aWJHOWlMbU52Y21VdWQybHVaRzkzY3k1dVpYUWlmUS5zLS1icWhMWTlMNnc1MHl6NEVVUnR5XzJkMXI2VWtNT2M4QThiOUJ0Y2p3JnJlc3BvbnNlLWNvbnRlbnQtZGlzcG9zaXRpb249YXR0YWNobWVudCUzQiUyMGZpbGVuYW1lJTNEQUlPTi1UVi1HT0xELXYxLjAtTE9HSU4tUkVGRVJFTkNFLXY3NC5hcGsmcmVzcG9uc2UtY29udGVudC10eXBlPWFwcGxpY2F0aW9uJTJGdm5kLmFuZHJvaWQucGFja2FnZS1hcmNoaXZlCg==
+        run: |
+          python - <<'PY'
+          import base64, hashlib, os, urllib.request, zipfile
+          url = base64.b64decode(os.environ['SIGNED_URL_B64']).decode()
+          target = 'AION-TV-GOLD-v1.0-LOGIN-REFERENCE-v74.apk'
+          urllib.request.urlretrieve(url, target)
+          data = open(target, 'rb').read()
+          digest = hashlib.sha256(data).hexdigest()
+          assert digest == '6f2be63bddc185e98a2c268b6df066b2b7ef50343256fbf920ef6cf6af71f5a5', digest
+          with zipfile.ZipFile(target) as apk:
+              assert apk.testzip() is None
+              assert 'AndroidManifest.xml' in apk.namelist()
+          print('Verified original v74 APK', len(data), digest)
+          PY
+      - name: Publish public download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create aion-tv-gold-android-v74 AION-TV-GOLD-v1.0-LOGIN-REFERENCE-v74.apk --repo abospank/Neo-Gold --title 'AION TV GOLD Android v74' --notes 'Exact unchanged v74 LOGIN REFERENCE APK from the original private release. SHA256 6f2be63bddc185e98a2c268b6df066b2b7ef50343256fbf920ef6cf6af71f5a5.' --latest=false
