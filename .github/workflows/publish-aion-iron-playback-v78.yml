@@ -1,0 +1,28 @@
+name: Publish AION IRON playback v78
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'transfers/aion-iron-playback-v78.txt'
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download verified private build
+        run: |
+          set -euo pipefail
+          source transfers/aion-iron-playback-v78.txt
+          printf '%s' "$URL_B64" | base64 -d > source-url.txt
+          curl --fail --location --retry 3 --max-time 300 "$(cat source-url.txt)" -o AION-TV-GOLD-v1.0-IRON-PLAYBACK-v78.apk
+          echo "$EXPECTED_SHA256  AION-TV-GOLD-v1.0-IRON-PLAYBACK-v78.apk" | sha256sum -c -
+          unzip -tq AION-TV-GOLD-v1.0-IRON-PLAYBACK-v78.apk
+          sha256sum AION-TV-GOLD-v1.0-IRON-PLAYBACK-v78.apk
+      - name: Publish public direct download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create aion-tv-gold-android-v78 AION-TV-GOLD-v1.0-IRON-PLAYBACK-v78.apk --title 'AION TV GOLD Android v78' --notes 'IRON dynamic host discovery and secondary channel routing, built from verified v77. Signed APK and Android 29 login startup verified. Live streams require an account and were not tested in CI.' --target "$GITHUB_SHA" --latest=false
