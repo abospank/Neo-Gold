@@ -1,28 +1,72 @@
-name: Publish AION IRON playback v78
+name: Build and publish AION IRON playback v78
 on:
   push:
     branches: [main]
     paths:
-      - 'transfers/aion-iron-playback-v78.txt'
+      - '.github/workflows/publish-aion-iron-playback-v78.yml'
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
-  publish:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Download verified private build
-        run: |
-          set -euo pipefail
-          source transfers/aion-iron-playback-v78.txt
-          printf '%s' "$URL_B64" | base64 -d > source-url.txt
-          curl --fail --location --retry 3 --max-time 300 "$(cat source-url.txt)" -o AION-TV-GOLD-v1.0-IRON-PLAYBACK-v78.apk
-          echo "$EXPECTED_SHA256  AION-TV-GOLD-v1.0-IRON-PLAYBACK-v78.apk" | sha256sum -c -
-          unzip -tq AION-TV-GOLD-v1.0-IRON-PLAYBACK-v78.apk
-          sha256sum AION-TV-GOLD-v1.0-IRON-PLAYBACK-v78.apk
-      - name: Publish public direct download
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Download verified public v77
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create aion-tv-gold-android-v78 AION-TV-GOLD-v1.0-IRON-PLAYBACK-v78.apk --title 'AION TV GOLD Android v78' --notes 'IRON dynamic host discovery and secondary channel routing, built from verified v77. Signed APK and Android 29 login startup verified. Live streams require an account and were not tested in CI.' --target "$GITHUB_SHA" --latest=false
+          gh release download aion-tv-gold-android-v77 --pattern AION-TV-GOLD-v1.0-MOVIE-SEARCH-v77.apk --output base.apk
+          echo '50fdb914d07d94b9f5df642506e34f39177298555e50cc8acb72e1bc79479bdb  base.apk' | sha256sum -c -
+          curl -fsSL --retry 3 https://github.com/iBotPeaches/Apktool/releases/download/v3.0.3/apktool_3.0.3.jar -o apktool.jar
+      - name: Build IRON playback patch
+        run: |
+          java -Xmx3g -jar apktool.jar d -f base.apk -o decoded >/dev/null
+          python3 releases/iron-playback-v78/patch.py decoded
+          java -Xmx4g -jar apktool.jar b decoded -o raw.apk >/dev/null
+          test -s raw.apk
+      - name: Sign and verify APK
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/abospank/Neo-Gold/main/signing/neo-gold-debug.keystore -o aion.keystore
+          echo '7ac3daca5a5409044826657a34e027ca84fa9f2a35737cd3fb844f9c912761ab  aion.keystore' | sha256sum -c -
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$BUILD_TOOLS/zipalign" -f -p 4 raw.apk aligned.apk
+          "$BUILD_TOOLS/apksigner" sign --ks aion.keystore --ks-key-alias neo-gold --ks-pass pass:android --key-pass pass:android --out AION-TV-GOLD-v1.0-IRON-PLAYBACK-v78.apk aligned.apk
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs AION-TV-GOLD-v1.0-IRON-PLAYBACK-v78.apk | tee verify.txt
+          grep -q '8afa8793403be4ee797f6d66818495efba57f4b257a8af37d2c97958f9ec31df' verify.txt
+          "$BUILD_TOOLS/aapt" dump badging AION-TV-GOLD-v1.0-IRON-PLAYBACK-v78.apk | grep -q "package: name='com.shadeed.neo4kpro' versionCode='78'"
+          sha256sum AION-TV-GOLD-v1.0-IRON-PLAYBACK-v78.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: |
+            adb shell wm size 1600x900
+            adb shell wm density 240
+            adb install -r AION-TV-GOLD-v1.0-IRON-PLAYBACK-v78.apk
+            adb shell pm clear com.shadeed.neo4kpro
+            adb logcat -c
+            timeout 25s adb shell am start -W -n com.shadeed.neo4kpro/com.shadeed.ibopro.IronCodeActivity
+            sleep 8
+            test -n "$(adb shell pidof com.shadeed.neo4kpro)"
+            adb shell dumpsys activity activities | grep -q 'mResumedActivity:.*IronCodeActivity'
+            if adb logcat -d | grep -E 'FATAL EXCEPTION|ANR in com.shadeed.neo4kpro'; then exit 1; fi
+            echo 'Login entry remains open after eight seconds'
+      - name: Publish direct download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create aion-tv-gold-android-v78 AION-TV-GOLD-v1.0-IRON-PLAYBACK-v78.apk --title 'AION TV GOLD Android v78' --notes 'Built from verified v77. IRON uses dynamic host discovery and secondary live host for categories above 300. APK signature and Android 29 login startup verified. Actual IRON playback requires account testing.' --target "$GITHUB_SHA" --latest=false
